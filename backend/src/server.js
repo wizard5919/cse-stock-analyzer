@@ -8,6 +8,7 @@ const Joi = require('joi');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const technicalIndicators = require('technicalindicators'); // NEW: Added technical indicators library
 require('dotenv').config();
 
 const app = express();
@@ -60,7 +61,7 @@ const dataStore = new Map();
 let lastUpdate = null;
 let connectedClients = 0;
 
-// CSE Stocks Configuration
+// CSE Stocks Configuration - Expanded to 25 stocks
 const CSE_STOCKS = {
   'ATW': { 
     name: 'Attijariwafa Bank', 
@@ -109,6 +110,97 @@ const CSE_STOCKS = {
     sector: 'Utilities',
     isin: 'MA0000012447',
     basePrice: 1045.00
+  },
+  // NEW STOCKS ADDED
+  'CDM': {
+    name: 'Credit du Maroc',
+    sector: 'Banking',
+    isin: 'MA0000012455',
+    basePrice: 210.50
+  },
+  'EQD': {
+    name: 'EQDOM',
+    sector: 'Financial Services',
+    isin: 'MA0000012456',
+    basePrice: 185.30
+  },
+  'FBR': {
+    name: 'Fenêtre Bati Résistant',
+    sector: 'Manufacturing',
+    isin: 'MA0000012457',
+    basePrice: 45.20
+  },
+  'GAZ': {
+    name: 'Afriquia Gaz',
+    sector: 'Energy',
+    isin: 'MA0000012458',
+    basePrice: 1980.00
+  },
+  'HPS': {
+    name: 'HPS',
+    sector: 'Technology',
+    isin: 'MA0000012459',
+    basePrice: 320.00
+  },
+  'IAM.PA': {
+    name: 'IAM Preferred Shares',
+    sector: 'Telecommunications',
+    isin: 'MA0000012460',
+    basePrice: 135.00
+  },
+  'INM': {
+    name: 'Intermarché Maroc',
+    sector: 'Retail',
+    isin: 'MA0000012461',
+    basePrice: 76.80
+  },
+  'LAM': {
+    name: 'LafargeHolcim Maroc',
+    sector: 'Construction',
+    isin: 'MA0000012462',
+    basePrice: 210.00
+  },
+  'MIC': {
+    name: 'Microdata',
+    sector: 'Technology',
+    isin: 'MA0000012463',
+    basePrice: 45.00
+  },
+  'MUT': {
+    name: 'La Mutuelle Agricole',
+    sector: 'Insurance',
+    isin: 'MA0000012464',
+    basePrice: 1200.00
+  },
+  'NEJ': {
+    name: 'Auto Nejma',
+    sector: 'Automotive',
+    isin: 'MA0000012465',
+    basePrice: 98.50
+  },
+  'S2M': {
+    name: 'S2M',
+    sector: 'Technology',
+    isin: 'MA0000012466',
+    basePrice: 85.00
+  },
+  'SMI': {
+    name: 'SMI',
+    sector: 'Industrial',
+    isin: 'MA0000012467',
+    basePrice: 150.00
+  },
+  'TAI': {
+    name: 'TAI',
+    sector: 'Aerospace',
+    isin: 'MA0000012468',
+    basePrice: 320.00
+  },
+  'WAA': {
+    name: 'Wafa Assurance',
+    sector: 'Insurance',
+    isin: 'MA0000012469',
+    basePrice: 420.00
   }
 };
 
@@ -125,6 +217,88 @@ function isMarketOpen() {
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
   
   return isWeekday && currentTime >= openTime && currentTime <= closeTime;
+}
+
+// NEW: Calculate technical indicators based on historical data
+function calculateTechnicalIndicators(historicalData) {
+  if (!historicalData || historicalData.length < 50) {
+    // Not enough data for accurate indicators
+    return {
+      rsi: 50,
+      ma20: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
+      ma50: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
+      macd: { value: 0, signal: 0, histogram: 0 },
+      stochastic: { k: 50, d: 50 },
+      signal: 'HOLD'
+    };
+  }
+
+  const closes = historicalData.map(d => d.close);
+  const highs = historicalData.map(d => d.high);
+  const lows = historicalData.map(d => d.low);
+  const volumes = historicalData.map(d => d.volume);
+
+  // Calculate RSI
+  const rsi = technicalIndicators.RSI.calculate({ values: closes, period: 14 });
+  const latestRSI = rsi.length > 0 ? rsi[rsi.length - 1] : 50;
+
+  // Calculate Moving Averages
+  const ma20 = technicalIndicators.SMA.calculate({ values: closes, period: 20 });
+  const latestMA20 = ma20.length > 0 ? ma20[ma20.length - 1] : closes[closes.length - 1];
+  
+  const ma50 = technicalIndicators.SMA.calculate({ values: closes, period: 50 });
+  const latestMA50 = ma50.length > 0 ? ma50[ma50.length - 1] : closes[closes.length - 1];
+
+  // Calculate MACD
+  const macdInput = {
+    values: closes,
+    fastPeriod: 12,
+    slowPeriod: 26,
+    signalPeriod: 9,
+    SimpleMAOscillator: false,
+    SimpleMASignal: false
+  };
+  const macd = technicalIndicators.MACD.calculate(macdInput);
+  const latestMACD = macd.length > 0 ? macd[macd.length - 1] : { MACD: 0, signal: 0, histogram: 0 };
+
+  // Calculate Stochastic
+  const stochasticInput = {
+    high: highs,
+    low: lows,
+    close: closes,
+    period: 14,
+    signalPeriod: 3
+  };
+  const stochastic = technicalIndicators.Stochastic.calculate(stochasticInput);
+  const latestStochastic = stochastic.length > 0 ? stochastic[stochastic.length - 1] : { k: 50, d: 50 };
+
+  // Generate trading signal
+  let signal = 'HOLD';
+  if (latestRSI < 30 && latestMACD.histogram > 0) {
+    signal = 'STRONG_BUY';
+  } else if (latestRSI > 70 && latestMACD.histogram < 0) {
+    signal = 'STRONG_SELL';
+  } else if (latestMACD.histogram > 0 && latestStochastic.k < 80) {
+    signal = 'BUY';
+  } else if (latestMACD.histogram < 0 && latestStochastic.k > 20) {
+    signal = 'SELL';
+  }
+
+  return {
+    rsi: parseFloat(latestRSI.toFixed(2)),
+    ma20: parseFloat(latestMA20.toFixed(2)),
+    ma50: parseFloat(latestMA50.toFixed(2)),
+    macd: {
+      value: parseFloat(latestMACD.MACD.toFixed(4)),
+      signal: parseFloat(latestMACD.signal.toFixed(4)),
+      histogram: parseFloat(latestMACD.histogram.toFixed(4))
+    },
+    stochastic: {
+      k: parseFloat(latestStochastic.k.toFixed(2)),
+      d: parseFloat(latestStochastic.d.toFixed(2))
+    },
+    signal
+  };
 }
 
 // Generate realistic mock data
@@ -161,11 +335,24 @@ function generateRealisticStockData() {
       dayLow: parseFloat((newPrice * (1 - Math.random() * 0.02)).toFixed(2)),
       openPrice: parseFloat((basePrice * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2)),
       previousClose: basePrice,
-      // Technical indicators (simplified)
-      rsi: parseFloat((30 + Math.random() * 40).toFixed(2)),
-      ma20: parseFloat((newPrice * (0.98 + Math.random() * 0.04)).toFixed(2)),
-      ma50: parseFloat((newPrice * (0.96 + Math.random() * 0.08)).toFixed(2))
+      // Technical indicators will be added later after historical data is generated
+      // Placeholder values for now
+      rsi: 0,
+      ma20: 0,
+      ma50: 0,
+      macd: { value: 0, signal: 0, histogram: 0 },
+      stochastic: { k: 0, d: 0 },
+      signal: 'HOLD'
     };
+  });
+  
+  // Generate historical data and technical indicators
+  stocks.forEach(stock => {
+    const historicalData = generateHistoricalData(stock, 100); // 100 days of history
+    const indicators = calculateTechnicalIndicators(historicalData);
+    
+    // Update stock with calculated indicators
+    Object.assign(stock, indicators);
   });
   
   return stocks;
@@ -178,7 +365,17 @@ function getVolatilityForSector(sector) {
     'Food & Beverages': 2.0,
     'Infrastructure': 2.8,
     'Mining': 4.5,
-    'Utilities': 2.2
+    'Utilities': 2.2,
+    'Technology': 5.0, // NEW
+    'Insurance': 3.2,  // NEW
+    'Retail': 3.5,     // NEW
+    'Automotive': 4.0, // NEW
+    'Energy': 4.2,     // NEW
+    'Financial Services': 3.3, // NEW
+    'Manufacturing': 3.0, // NEW
+    'Construction': 3.2, // NEW
+    'Industrial': 3.1,   // NEW
+    'Aerospace': 4.1     // NEW
   };
   return sectorVolatility[sector] || 3.0;
 }
@@ -192,7 +389,23 @@ function generateVolumeForStock(symbol, price, changePercent) {
     'SNA': 60000,
     'LES': 45000,
     'MNG': 25000,
-    'TQM': 35000
+    'TQM': 35000,
+    // NEW VOLUMES
+    'CDM': 55000,
+    'EQD': 40000,
+    'FBR': 30000,
+    'GAZ': 28000,
+    'HPS': 65000,
+    'IAM.PA': 48000,
+    'INM': 52000,
+    'LAM': 38000,
+    'MIC': 72000,
+    'MUT': 33000,
+    'NEJ': 27000,
+    'S2M': 58000,
+    'SMI': 42000,
+    'TAI': 36000,
+    'WAA': 49000
   };
   
   const baseVolume = baseVolumes[symbol] || 50000;
@@ -212,7 +425,23 @@ function calculateMarketCap(symbol, price) {
     'SNA': 100000000,
     'LES': 25000000,
     'MNG': 40000000,
-    'TQM': 70000000
+    'TQM': 70000000,
+    // NEW SHARES
+    'CDM': 50000000,
+    'EQD': 35000000,
+    'FBR': 20000000,
+    'GAZ': 25000000,
+    'HPS': 60000000,
+    'IAM.PA': 40000000,
+    'INM': 28000000,
+    'LAM': 32000000,
+    'MIC': 75000000,
+    'MUT': 22000000,
+    'NEJ': 18000000,
+    'S2M': 55000000,
+    'SMI': 38000000,
+    'TAI': 42000000,
+    'WAA': 46000000
   };
   
   const shares = outstandingShares[symbol] || 50000000;
@@ -462,9 +691,13 @@ app.get('/api/stocks/:symbol/history', (req, res) => {
     // Generate historical data
     const history = generateHistoricalData(stock, days);
     
+    // NEW: Calculate indicators for this specific history
+    const indicators = calculateTechnicalIndicators(history);
+    
     res.json({ 
       symbol, 
       history, 
+      indicators, // NEW: Include calculated indicators
       period: `${days} days`,
       generated: true // Indicate this is generated data
     });
@@ -574,6 +807,31 @@ app.get('/api/search', (req, res) => {
   } catch (error) {
     console.error('Error searching stocks:', error);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// NEW: Endpoint for trading signals
+app.get('/api/signals', (req, res) => {
+  try {
+    const stocks = dataStore.get('stocks') || [];
+    
+    // Filter stocks with strong signals
+    const strongBuys = stocks.filter(stock => stock.signal === 'STRONG_BUY');
+    const strongSells = stocks.filter(stock => stock.signal === 'STRONG_SELL');
+    const buys = stocks.filter(stock => stock.signal === 'BUY');
+    const sells = stocks.filter(stock => stock.signal === 'SELL');
+    
+    res.json({
+      strongBuys,
+      strongSells,
+      buys,
+      sells,
+      lastUpdate,
+      totalStocks: stocks.length
+    });
+  } catch (error) {
+    console.error('Error fetching signals:', error);
+    res.status(500).json({ error: 'Failed to fetch trading signals' });
   }
 });
 
