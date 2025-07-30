@@ -8,7 +8,6 @@ const Joi = require('joi');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-const technicalIndicators = require('technicalindicators'); // NEW: Added technical indicators library
 require('dotenv').config();
 
 const app = express();
@@ -219,84 +218,81 @@ function isMarketOpen() {
   return isWeekday && currentTime >= openTime && currentTime <= closeTime;
 }
 
-// NEW: Calculate technical indicators based on historical data
-function calculateTechnicalIndicators(historicalData) {
-  if (!historicalData || historicalData.length < 50) {
-    // Not enough data for accurate indicators
+// Simplified technical indicators calculation
+function calculateSimpleTechnicalIndicators(historicalData) {
+  if (!historicalData || historicalData.length < 20) {
     return {
       rsi: 50,
       ma20: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
       ma50: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
-      macd: { value: 0, signal: 0, histogram: 0 },
-      stochastic: { k: 50, d: 50 },
       signal: 'HOLD'
     };
   }
 
   const closes = historicalData.map(d => d.close);
-  const highs = historicalData.map(d => d.high);
-  const lows = historicalData.map(d => d.low);
-  const volumes = historicalData.map(d => d.volume);
-
-  // Calculate RSI
-  const rsi = technicalIndicators.RSI.calculate({ values: closes, period: 14 });
-  const latestRSI = rsi.length > 0 ? rsi[rsi.length - 1] : 50;
-
-  // Calculate Moving Averages
-  const ma20 = technicalIndicators.SMA.calculate({ values: closes, period: 20 });
-  const latestMA20 = ma20.length > 0 ? ma20[ma20.length - 1] : closes[closes.length - 1];
   
-  const ma50 = technicalIndicators.SMA.calculate({ values: closes, period: 50 });
-  const latestMA50 = ma50.length > 0 ? ma50[ma50.length - 1] : closes[closes.length - 1];
+  // Simple Moving Average (20 period)
+  const ma20Array = [];
+  for (let i = 19; i < closes.length; i++) {
+    const sum = closes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
+    ma20Array.push(sum / 20);
+  }
+  const ma20 = ma20Array.length > 0 ? ma20Array[ma20Array.length - 1] : closes[closes.length - 1];
 
-  // Calculate MACD
-  const macdInput = {
-    values: closes,
-    fastPeriod: 12,
-    slowPeriod: 26,
-    signalPeriod: 9,
-    SimpleMAOscillator: false,
-    SimpleMASignal: false
-  };
-  const macd = technicalIndicators.MACD.calculate(macdInput);
-  const latestMACD = macd.length > 0 ? macd[macd.length - 1] : { MACD: 0, signal: 0, histogram: 0 };
+  // Simple Moving Average (50 period)
+  const ma50Array = [];
+  if (closes.length >= 50) {
+    for (let i = 49; i < closes.length; i++) {
+      const sum = closes.slice(i - 49, i + 1).reduce((a, b) => a + b, 0);
+      ma50Array.push(sum / 50);
+    }
+  }
+  const ma50 = ma50Array.length > 0 ? ma50Array[ma50Array.length - 1] : closes[closes.length - 1];
 
-  // Calculate Stochastic
-  const stochasticInput = {
-    high: highs,
-    low: lows,
-    close: closes,
-    period: 14,
-    signalPeriod: 3
-  };
-  const stochastic = technicalIndicators.Stochastic.calculate(stochasticInput);
-  const latestStochastic = stochastic.length > 0 ? stochastic[stochastic.length - 1] : { k: 50, d: 50 };
+  // Simple RSI calculation
+  let rsi = 50;
+  if (closes.length >= 14) {
+    const gains = [];
+    const losses = [];
+    
+    for (let i = 1; i < Math.min(closes.length, 15); i++) {
+      const change = closes[i] - closes[i - 1];
+      if (change > 0) {
+        gains.push(change);
+        losses.push(0);
+      } else {
+        gains.push(0);
+        losses.push(Math.abs(change));
+      }
+    }
+    
+    const avgGain = gains.reduce((a, b) => a + b, 0) / gains.length;
+    const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
+    
+    if (avgLoss !== 0) {
+      const rs = avgGain / avgLoss;
+      rsi = 100 - (100 / (1 + rs));
+    }
+  }
 
-  // Generate trading signal
+  // Simple signal generation
   let signal = 'HOLD';
-  if (latestRSI < 30 && latestMACD.histogram > 0) {
-    signal = 'STRONG_BUY';
-  } else if (latestRSI > 70 && latestMACD.histogram < 0) {
-    signal = 'STRONG_SELL';
-  } else if (latestMACD.histogram > 0 && latestStochastic.k < 80) {
+  const currentPrice = closes[closes.length - 1];
+  
+  if (rsi < 30 && currentPrice > ma20) {
     signal = 'BUY';
-  } else if (latestMACD.histogram < 0 && latestStochastic.k > 20) {
+  } else if (rsi > 70 && currentPrice < ma20) {
     signal = 'SELL';
+  } else if (rsi < 25) {
+    signal = 'STRONG_BUY';
+  } else if (rsi > 75) {
+    signal = 'STRONG_SELL';
   }
 
   return {
-    rsi: parseFloat(latestRSI.toFixed(2)),
-    ma20: parseFloat(latestMA20.toFixed(2)),
-    ma50: parseFloat(latestMA50.toFixed(2)),
-    macd: {
-      value: parseFloat(latestMACD.MACD.toFixed(4)),
-      signal: parseFloat(latestMACD.signal.toFixed(4)),
-      histogram: parseFloat(latestMACD.histogram.toFixed(4))
-    },
-    stochastic: {
-      k: parseFloat(latestStochastic.k.toFixed(2)),
-      d: parseFloat(latestStochastic.d.toFixed(2))
-    },
+    rsi: parseFloat(rsi.toFixed(2)),
+    ma20: parseFloat(ma20.toFixed(2)),
+    ma50: parseFloat(ma50.toFixed(2)),
     signal
   };
 }
@@ -336,12 +332,9 @@ function generateRealisticStockData() {
       openPrice: parseFloat((basePrice * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2)),
       previousClose: basePrice,
       // Technical indicators will be added later after historical data is generated
-      // Placeholder values for now
       rsi: 0,
       ma20: 0,
       ma50: 0,
-      macd: { value: 0, signal: 0, histogram: 0 },
-      stochastic: { k: 0, d: 0 },
       signal: 'HOLD'
     };
   });
@@ -349,7 +342,7 @@ function generateRealisticStockData() {
   // Generate historical data and technical indicators
   stocks.forEach(stock => {
     const historicalData = generateHistoricalData(stock, 100); // 100 days of history
-    const indicators = calculateTechnicalIndicators(historicalData);
+    const indicators = calculateSimpleTechnicalIndicators(historicalData);
     
     // Update stock with calculated indicators
     Object.assign(stock, indicators);
@@ -366,82 +359,43 @@ function getVolatilityForSector(sector) {
     'Infrastructure': 2.8,
     'Mining': 4.5,
     'Utilities': 2.2,
-    'Technology': 5.0, // NEW
-    'Insurance': 3.2,  // NEW
-    'Retail': 3.5,     // NEW
-    'Automotive': 4.0, // NEW
-    'Energy': 4.2,     // NEW
-    'Financial Services': 3.3, // NEW
-    'Manufacturing': 3.0, // NEW
-    'Construction': 3.2, // NEW
-    'Industrial': 3.1,   // NEW
-    'Aerospace': 4.1     // NEW
+    'Technology': 5.0,
+    'Insurance': 3.2,
+    'Retail': 3.5,
+    'Automotive': 4.0,
+    'Energy': 4.2,
+    'Financial Services': 3.3,
+    'Manufacturing': 3.0,
+    'Construction': 3.2,
+    'Industrial': 3.1,
+    'Aerospace': 4.1
   };
   return sectorVolatility[sector] || 3.0;
 }
 
 function generateVolumeForStock(symbol, price, changePercent) {
   const baseVolumes = {
-    'ATW': 150000,
-    'IAM': 120000,
-    'COS': 80000,
-    'BCP': 200000,
-    'SNA': 60000,
-    'LES': 45000,
-    'MNG': 25000,
-    'TQM': 35000,
-    // NEW VOLUMES
-    'CDM': 55000,
-    'EQD': 40000,
-    'FBR': 30000,
-    'GAZ': 28000,
-    'HPS': 65000,
-    'IAM.PA': 48000,
-    'INM': 52000,
-    'LAM': 38000,
-    'MIC': 72000,
-    'MUT': 33000,
-    'NEJ': 27000,
-    'S2M': 58000,
-    'SMI': 42000,
-    'TAI': 36000,
-    'WAA': 49000
+    'ATW': 150000, 'IAM': 120000, 'COS': 80000, 'BCP': 200000, 'SNA': 60000,
+    'LES': 45000, 'MNG': 25000, 'TQM': 35000, 'CDM': 55000, 'EQD': 40000,
+    'FBR': 30000, 'GAZ': 28000, 'HPS': 65000, 'IAM.PA': 48000, 'INM': 52000,
+    'LAM': 38000, 'MIC': 72000, 'MUT': 33000, 'NEJ': 27000, 'S2M': 58000,
+    'SMI': 42000, 'TAI': 36000, 'WAA': 49000
   };
   
   const baseVolume = baseVolumes[symbol] || 50000;
-  const volatilityMultiplier = 1 + (changePercent * 0.1); // Higher change = higher volume
-  const randomFactor = 0.8 + (Math.random() * 0.4); // ±20% random variation
+  const volatilityMultiplier = 1 + (changePercent * 0.1);
+  const randomFactor = 0.8 + (Math.random() * 0.4);
   
   return Math.floor(baseVolume * volatilityMultiplier * randomFactor);
 }
 
 function calculateMarketCap(symbol, price) {
-  // Mock outstanding shares (based on approximate real values)
   const outstandingShares = {
-    'ATW': 200000000,
-    'IAM': 900000000,
-    'COS': 30000000,
-    'BCP': 180000000,
-    'SNA': 100000000,
-    'LES': 25000000,
-    'MNG': 40000000,
-    'TQM': 70000000,
-    // NEW SHARES
-    'CDM': 50000000,
-    'EQD': 35000000,
-    'FBR': 20000000,
-    'GAZ': 25000000,
-    'HPS': 60000000,
-    'IAM.PA': 40000000,
-    'INM': 28000000,
-    'LAM': 32000000,
-    'MIC': 75000000,
-    'MUT': 22000000,
-    'NEJ': 18000000,
-    'S2M': 55000000,
-    'SMI': 38000000,
-    'TAI': 42000000,
-    'WAA': 46000000
+    'ATW': 200000000, 'IAM': 900000000, 'COS': 30000000, 'BCP': 180000000, 'SNA': 100000000,
+    'LES': 25000000, 'MNG': 40000000, 'TQM': 70000000, 'CDM': 50000000, 'EQD': 35000000,
+    'FBR': 20000000, 'GAZ': 25000000, 'HPS': 60000000, 'IAM.PA': 40000000, 'INM': 28000000,
+    'LAM': 32000000, 'MIC': 75000000, 'MUT': 22000000, 'NEJ': 18000000, 'S2M': 55000000,
+    'SMI': 38000000, 'TAI': 42000000, 'WAA': 46000000
   };
   
   const shares = outstandingShares[symbol] || 50000000;
@@ -691,15 +645,15 @@ app.get('/api/stocks/:symbol/history', (req, res) => {
     // Generate historical data
     const history = generateHistoricalData(stock, days);
     
-    // NEW: Calculate indicators for this specific history
-    const indicators = calculateTechnicalIndicators(history);
+    // Calculate indicators for this specific history
+    const indicators = calculateSimpleTechnicalIndicators(history);
     
     res.json({ 
       symbol, 
       history, 
-      indicators, // NEW: Include calculated indicators
+      indicators,
       period: `${days} days`,
-      generated: true // Indicate this is generated data
+      generated: true
     });
   } catch (error) {
     console.error('Error fetching stock history:', error);
@@ -810,7 +764,7 @@ app.get('/api/search', (req, res) => {
   }
 });
 
-// NEW: Endpoint for trading signals
+// Trading signals endpoint
 app.get('/api/signals', (req, res) => {
   try {
     const stocks = dataStore.get('stocks') || [];
