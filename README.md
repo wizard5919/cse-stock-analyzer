@@ -82,9 +82,9 @@ cd frontend && npm start
 ```
 
 ### **4. Access Application**
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000/api
-- **Health Check**: http://localhost:5000/api/health
+- **Frontend**: http://localhost:3002
+- **Backend API**: http://localhost:5003/api
+- **Health Check**: http://localhost:5003/api/health
 
 ## 📱 **Screenshots**
 
