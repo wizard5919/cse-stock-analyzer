@@ -27,6 +27,7 @@
 - **Market breadth indicators** (gainers vs losers ratio)
 - **MASI index tracking** with real-time calculations
 - **Volume analysis** and trading pattern recognition
+- **Technical indicators** (RSI, Moving Averages, Trading Signals)
 
 ### 🎨 **Modern User Interface**
 - **Responsive design** that works on all devices
@@ -66,9 +67,10 @@ chmod +x start.sh
 
 ### **3. Manual Setup (Alternative)**
 ```bash
-# Install dependencies
-npm install
+# Install dependencies for backend
 cd backend && npm install && cd ..
+
+# Install dependencies for frontend
 cd frontend && npm install && cd ..
 
 # Setup environment
@@ -77,14 +79,14 @@ cp .env.example .env
 # Start backend
 cd backend && npm run dev &
 
-# Start frontend
+# Start frontend (in a new terminal)
 cd frontend && npm start
 ```
 
 ### **4. Access Application**
-- **Frontend**: http://localhost:3002
-- **Backend API**: http://localhost:5003/api
-- **Health Check**: http://localhost:5003/api/health
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000/api
+- **Health Check**: http://localhost:5000/api/health
 
 ## 📱 **Screenshots**
 
@@ -141,144 +143,49 @@ cd frontend && npm start
 
 ### **Base URL**: `http://localhost:5000/api`
 
-### **Endpoints**
+### **Key Endpoints**
 
 #### **📈 Stock Data**
 ```http
 GET /stocks
 ```
 Get all stocks with real-time data
-```json
-{
-  "stocks": [
-    {
-      "symbol": "ATW",
-      "name": "Attijariwafa Bank",
-      "price": 525.30,
-      "change": 4.80,
-      "changePercent": 0.92,
-      "volume": 152000,
-      "marketCap": 105000000000,
-      "sector": "Banking"
-    }
-  ],
-  "totalStocks": 8
-}
-```
 
 #### **🔍 Individual Stock**
 ```http
 GET /stocks/{symbol}
 ```
-Get specific stock details
-```json
-{
-  "symbol": "ATW",
-  "name": "Attijariwafa Bank",
-  "price": 525.30,
-  "change": 4.80,
-  "changePercent": 0.92,
-  "dayHigh": 527.50,
-  "dayLow": 523.10,
-  "volume": 152000,
-  "marketCap": 105000000000,
-  "sector": "Banking",
-  "rsi": 65.4,
-  "ma20": 523.45,
-  "ma50": 520.12
-}
-```
+Get specific stock details with technical indicators
 
 #### **📈 Historical Data**
 ```http
 GET /stocks/{symbol}/history?days=30
 ```
-Get historical price data
-```json
-{
-  "symbol": "ATW",
-  "history": [
-    {
-      "date": "2025-01-01",
-      "open": 520.00,
-      "high": 525.50,
-      "low": 518.00,
-      "close": 522.30,
-      "volume": 145000
-    }
-  ],
-  "period": "30 days"
-}
-```
+Get historical price data with technical analysis
 
 #### **🌍 Market Summary**
 ```http
 GET /market-summary
 ```
-Get comprehensive market overview
-```json
-{
-  "totalStocks": 8,
-  "totalMarketCap": 305740000000,
-  "totalVolume": 643000,
-  "gainers": 5,
-  "losers": 3,
-  "topGainers": [...],
-  "topLosers": [...],
-  "masi": {
-    "value": 12547.30,
-    "change": 45.20,
-    "changePercent": 0.36
-  }
-}
-```
+Get comprehensive market overview with MASI index
 
 #### **🏢 Sector Analysis**
 ```http
 GET /sectors
 ```
 Get sector performance data
-```json
-{
-  "sectors": [
-    {
-      "name": "Banking",
-      "stockCount": 2,
-      "totalMarketCap": 150300000000,
-      "avgChange": 1.01,
-      "performance": "positive"
-    }
-  ]
-}
-```
 
-#### **🔍 Search Stocks**
+#### **🎯 Trading Signals**
 ```http
-GET /search?q=bank
+GET /signals
 ```
-Search stocks by symbol, name, or sector
-```json
-{
-  "query": "bank",
-  "results": [...],
-  "totalResults": 2
-}
-```
+Get stocks with BUY/SELL/HOLD signals based on technical analysis
 
 #### **❤️ Health Check**
 ```http
 GET /health
 ```
 Get application health status
-```json
-{
-  "status": "healthy",
-  "uptime": 3600,
-  "marketOpen": true,
-  "connectedClients": 5,
-  "lastDataUpdate": "2025-01-26T10:30:00.000Z"
-}
-```
 
 ## 🌐 **WebSocket Events**
 
@@ -294,32 +201,6 @@ const socket = io('http://localhost:5000');
 | `market-update` | Real-time market updates | Updated stock prices |
 | `connection` | Client connected | Connection info |
 | `disconnect` | Client disconnected | Disconnection info |
-
-### **Example Usage**
-```javascript
-socket.on('market-update', (data) => {
-  console.log('Market update:', data.stocks);
-  // Update UI with new data
-});
-```
-
-## 🧪 **Testing**
-
-### **Run Tests**
-```bash
-# Backend tests
-cd backend && npm test
-
-# Frontend tests
-cd frontend && npm test
-
-# All tests with coverage
-npm run test:coverage
-```
-
-### **Test Coverage**
-- **Backend**: API endpoints, data validation, WebSocket connections
-- **Frontend**: Component rendering, user interactions, data flow
 
 ## 📦 **Docker Deployment**
 
@@ -340,12 +221,6 @@ docker-compose -f docker-compose.prod.yml up -d
 # Monitor services
 docker-compose ps
 ```
-
-### **Docker Images**
-- **Backend**: `cse-backend:latest`
-- **Frontend**: `cse-frontend:latest`
-- **Database**: `mongo:7.0`
-- **Cache**: `redis:7.2-alpine`
 
 ## 🔧 **Configuration**
 
@@ -386,6 +261,37 @@ CACHE_DURATION_MINUTES=5
 | **LES** | Lesieur Cristal | Food & Beverages |
 | **MNG** | Managem | Mining |
 | **TQM** | Taqa Morocco | Utilities |
+| **CDM** | Credit du Maroc | Banking |
+| **EQD** | EQDOM | Financial Services |
+| **GAZ** | Afriquia Gaz | Energy |
+| **HPS** | HPS | Technology |
+| **MIC** | Microdata | Technology |
+| **WAA** | Wafa Assurance | Insurance |
+| *...and 8 more* | *Total: 23 stocks* | *Various sectors* |
+
+## 🧪 **Testing**
+
+### **Run Tests**
+```bash
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
+
+# All tests with coverage
+npm run test:coverage
+```
+
+## ⚡ **Performance Features**
+
+- **Real-time updates** every 2 minutes during market hours
+- **WebSocket connections** for instant data synchronization  
+- **Efficient caching** with 5-minute cache duration
+- **Rate limiting** (100 requests per 15 minutes)
+- **Market hours detection** to optimize resource usage
+- **Technical indicators** calculated on-demand
+- **Responsive design** optimized for all devices
 
 ## 🤝 **Contributing**
 
@@ -398,20 +304,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. **Push** to branch: `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
-### **Development Setup**
-```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/cse-stock-analyzer.git
-
-# Install dependencies
-./start.sh
-
-# Create feature branch
-git checkout -b feature/your-feature
-
-# Start coding! 🚀
-```
-
 ## 📈 **Roadmap**
 
 ### **Phase 1: Core Features** ✅
@@ -420,39 +312,33 @@ git checkout -b feature/your-feature
 - [x] Sector analysis
 - [x] WebSocket updates
 - [x] Responsive UI
+- [x] Technical indicators
+- [x] Trading signals
 
 ### **Phase 2: Enhanced Features** 🔄
 - [ ] User authentication
 - [ ] Portfolio tracking
 - [ ] Price alerts
 - [ ] News integration
-- [ ] Mobile app
+- [ ] Advanced charting tools
 
 ### **Phase 3: Advanced Analytics** 📋
-- [ ] Technical indicators (RSI, MACD)
 - [ ] Machine learning predictions
 - [ ] Sentiment analysis
 - [ ] Backtesting tools
 - [ ] API for developers
+- [ ] Mobile companion app
 
 ## 🐛 **Known Issues**
 
-- Data is currently simulated for development
-- Real CSE data integration pending
-- Mobile responsiveness can be improved
-- Historical data limited to 30 days
+- Data is currently simulated for development (real CSE integration pending)
+- Historical data limited to generated mock data
+- WebSocket reconnection could be improved
+- Mobile optimization in progress
 
 ## 📄 **License**
 
 This project is licensed under the **ISC License** - see the [LICENSE](LICENSE) file for details.
-
-```
-Copyright (c) 2025 CSE Stock Analyzer
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-```
 
 ## 🙏 **Acknowledgments**
 
@@ -466,7 +352,6 @@ copyright notice and this permission notice appear in all copies.
 - **📧 Email**: youssefsbai1959@gmail.com
 - **🐛 Issues**: [GitHub Issues](https://github.com/wizard5919/cse-stock-analyzer/issues)
 - **💬 Discussions**: [GitHub Discussions](https://github.com/wizard5919/cse-stock-analyzer/discussions)
-- **📚 Documentation**: [Wiki](https://github.com/wizard5919/cse-stock-analyzer/wiki)
 
 ## ⭐ **Show Your Support**
 
