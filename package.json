@@ -16,5 +16,14 @@
   "bugs": {
     "url": "https://github.com/wizard5919/cse-stock-analyzer/issues"
   },
-  "homepage": "https://github.com/wizard5919/cse-stock-analyzer#readme"
+  "homepage": "https://github.com/wizard5919/cse-stock-analyzer#readme",
+  "dependencies": {
+    "@react-native-community/masked-view": "^0.1.11",
+    "@react-navigation/native": "^7.1.16",
+    "@react-navigation/stack": "^7.4.4",
+    "react-native-gesture-handler": "^2.27.2",
+    "react-native-reanimated": "^4.0.0",
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-screens": "^4.13.1"
+  }
 }
