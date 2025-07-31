@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Remove the broken server.js file
+rm -f server.js
+
+# Create the correct server.js file
+cat > server.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -1113,3 +1120,10 @@ async function startServer() {
 
 // Start the server
 startServer();
+EOF
+
+echo "✅ Server file created successfully!"
+echo "🚀 Starting the server..."
+
+# Start the server
+npm start
