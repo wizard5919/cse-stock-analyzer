@@ -1,3 +1,5 @@
+# Create the complete server.js file in the src directory
+cat > src/server.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -55,12 +57,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// In-memory data store (In production, use Redis)
+// In-memory data store
 const dataStore = new Map();
 let lastUpdate = null;
 let connectedClients = 0;
 
-// CSE Stocks Configuration - Expanded to 25 stocks
+// CSE Stocks Configuration - All 23 stocks
 const CSE_STOCKS = {
   'ATW': { 
     name: 'Attijariwafa Bank', 
@@ -110,7 +112,6 @@ const CSE_STOCKS = {
     isin: 'MA0000012447',
     basePrice: 1045.00
   },
-  // NEW STOCKS ADDED
   'CDM': {
     name: 'Credit du Maroc',
     sector: 'Banking',
@@ -218,85 +219,6 @@ function isMarketOpen() {
   return isWeekday && currentTime >= openTime && currentTime <= closeTime;
 }
 
-// Simplified technical indicators calculation
-function calculateSimpleTechnicalIndicators(historicalData) {
-  if (!historicalData || historicalData.length < 20) {
-    return {
-      rsi: 50,
-      ma20: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
-      ma50: historicalData.length > 0 ? historicalData[historicalData.length - 1].close : 0,
-      signal: 'HOLD'
-    };
-  }
-
-  const closes = historicalData.map(d => d.close);
-  
-  // Simple Moving Average (20 period)
-  const ma20Array = [];
-  for (let i = 19; i < closes.length; i++) {
-    const sum = closes.slice(i - 19, i + 1).reduce((a, b) => a + b, 0);
-    ma20Array.push(sum / 20);
-  }
-  const ma20 = ma20Array.length > 0 ? ma20Array[ma20Array.length - 1] : closes[closes.length - 1];
-
-  // Simple Moving Average (50 period)
-  const ma50Array = [];
-  if (closes.length >= 50) {
-    for (let i = 49; i < closes.length; i++) {
-      const sum = closes.slice(i - 49, i + 1).reduce((a, b) => a + b, 0);
-      ma50Array.push(sum / 50);
-    }
-  }
-  const ma50 = ma50Array.length > 0 ? ma50Array[ma50Array.length - 1] : closes[closes.length - 1];
-
-  // Simple RSI calculation
-  let rsi = 50;
-  if (closes.length >= 14) {
-    const gains = [];
-    const losses = [];
-    
-    for (let i = 1; i < Math.min(closes.length, 15); i++) {
-      const change = closes[i] - closes[i - 1];
-      if (change > 0) {
-        gains.push(change);
-        losses.push(0);
-      } else {
-        gains.push(0);
-        losses.push(Math.abs(change));
-      }
-    }
-    
-    const avgGain = gains.reduce((a, b) => a + b, 0) / gains.length;
-    const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
-    
-    if (avgLoss !== 0) {
-      const rs = avgGain / avgLoss;
-      rsi = 100 - (100 / (1 + rs));
-    }
-  }
-
-  // Simple signal generation
-  let signal = 'HOLD';
-  const currentPrice = closes[closes.length - 1];
-  
-  if (rsi < 30 && currentPrice > ma20) {
-    signal = 'BUY';
-  } else if (rsi > 70 && currentPrice < ma20) {
-    signal = 'SELL';
-  } else if (rsi < 25) {
-    signal = 'STRONG_BUY';
-  } else if (rsi > 75) {
-    signal = 'STRONG_SELL';
-  }
-
-  return {
-    rsi: parseFloat(rsi.toFixed(2)),
-    ma20: parseFloat(ma20.toFixed(2)),
-    ma50: parseFloat(ma50.toFixed(2)),
-    signal
-  };
-}
-
 // Generate realistic mock data
 function generateRealisticStockData() {
   const stocks = Object.entries(CSE_STOCKS).map(([symbol, config]) => {
@@ -312,7 +234,7 @@ function generateRealisticStockData() {
     // Generate realistic volume
     const volume = generateVolumeForStock(symbol, newPrice, Math.abs(changePercent));
     
-    // Calculate market cap (mock values based on real proportions)
+    // Calculate market cap
     const marketCap = calculateMarketCap(symbol, newPrice);
     
     return {
@@ -326,26 +248,15 @@ function generateRealisticStockData() {
       sector: config.sector,
       isin: config.isin,
       lastUpdate: new Date().toISOString(),
-      // Additional realistic data
       dayHigh: parseFloat((newPrice * (1 + Math.random() * 0.02)).toFixed(2)),
       dayLow: parseFloat((newPrice * (1 - Math.random() * 0.02)).toFixed(2)),
       openPrice: parseFloat((basePrice * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2)),
       previousClose: basePrice,
-      // Technical indicators will be added later after historical data is generated
-      rsi: 0,
-      ma20: 0,
-      ma50: 0,
-      signal: 'HOLD'
+      rsi: 50 + (Math.random() - 0.5) * 40,
+      ma20: parseFloat((newPrice * (0.98 + Math.random() * 0.04)).toFixed(2)),
+      ma50: parseFloat((newPrice * (0.96 + Math.random() * 0.08)).toFixed(2)),
+      signal: ['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL'][Math.floor(Math.random() * 5)]
     };
-  });
-  
-  // Generate historical data and technical indicators
-  stocks.forEach(stock => {
-    const historicalData = generateHistoricalData(stock, 100); // 100 days of history
-    const indicators = calculateSimpleTechnicalIndicators(historicalData);
-    
-    // Update stock with calculated indicators
-    Object.assign(stock, indicators);
   });
   
   return stocks;
@@ -453,7 +364,6 @@ function calculateMarketSummary(stocks) {
   const losers = stocks.filter(s => s.change < 0).length;
   const unchanged = stocks.filter(s => s.change === 0).length;
   
-  // Top performers
   const topGainers = stocks
     .filter(s => s.changePercent > 0)
     .sort((a, b) => b.changePercent - a.changePercent)
@@ -511,17 +421,15 @@ function calculateSectorData(stocks) {
 }
 
 function generateMASIData(stocks) {
-  // MASI calculation (simplified weighted index)
   const weightedSum = stocks.reduce((sum, stock) => {
-    const weight = (stock.marketCap || 0) / 1000000000; // Weight by market cap in billions
+    const weight = (stock.marketCap || 0) / 1000000000;
     return sum + (stock.price * weight);
   }, 0);
   
   const totalWeight = stocks.reduce((sum, stock) => sum + ((stock.marketCap || 0) / 1000000000), 0);
-  const baseIndexValue = 12500; // Starting point for MASI
+  const baseIndexValue = 12500;
   const indexValue = totalWeight > 0 ? (weightedSum / totalWeight) * 20 + baseIndexValue : baseIndexValue;
   
-  // Calculate change based on average stock performance
   const avgChangePercent = stocks.reduce((sum, stock) => sum + (stock.changePercent || 0), 0) / stocks.length;
   const indexChange = (indexValue * avgChangePercent) / 100;
   
@@ -631,66 +539,6 @@ app.get('/api/stocks/:symbol', (req, res) => {
   }
 });
 
-app.get('/api/stocks/:symbol/history', (req, res) => {
-  try {
-    const symbol = req.params.symbol.toUpperCase();
-    const days = parseInt(req.query.days) || 30;
-    const stocks = dataStore.get('stocks') || [];
-    const stock = stocks.find(s => s.symbol === symbol);
-    
-    if (!stock) {
-      return res.status(404).json({ error: 'Stock not found' });
-    }
-    
-    // Generate historical data
-    const history = generateHistoricalData(stock, days);
-    
-    // Calculate indicators for this specific history
-    const indicators = calculateSimpleTechnicalIndicators(history);
-    
-    res.json({ 
-      symbol, 
-      history, 
-      indicators,
-      period: `${days} days`,
-      generated: true
-    });
-  } catch (error) {
-    console.error('Error fetching stock history:', error);
-    res.status(500).json({ error: 'Failed to fetch stock history' });
-  }
-});
-
-function generateHistoricalData(stock, days) {
-  const history = [];
-  const currentPrice = stock.price;
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    
-    // Skip weekends
-    if (date.getDay() === 0 || date.getDay() === 6) {
-      continue;
-    }
-    
-    const variance = (Math.random() - 0.5) * 0.08; // ±4% daily variance
-    const dayPrice = currentPrice * (1 + variance * (i / days)); // Trend toward current price
-    const volume = stock.volume * (0.8 + Math.random() * 0.4); // ±20% volume variance
-    
-    history.push({
-      date: date.toISOString().split('T')[0],
-      open: parseFloat((dayPrice * 0.999).toFixed(2)),
-      high: parseFloat((dayPrice * 1.015).toFixed(2)),
-      low: parseFloat((dayPrice * 0.985).toFixed(2)),
-      close: parseFloat(dayPrice.toFixed(2)),
-      volume: Math.floor(volume)
-    });
-  }
-  
-  return history.sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-
 app.get('/api/market-summary', (req, res) => {
   try {
     const marketSummary = dataStore.get('market-summary');
@@ -738,7 +586,6 @@ app.get('/api/masi', (req, res) => {
   }
 });
 
-// Search endpoint
 app.get('/api/search', (req, res) => {
   try {
     const query = req.query.q;
@@ -764,12 +611,10 @@ app.get('/api/search', (req, res) => {
   }
 });
 
-// Trading signals endpoint
 app.get('/api/signals', (req, res) => {
   try {
     const stocks = dataStore.get('stocks') || [];
     
-    // Filter stocks with strong signals
     const strongBuys = stocks.filter(stock => stock.signal === 'STRONG_BUY');
     const strongSells = stocks.filter(stock => stock.signal === 'STRONG_SELL');
     const buys = stocks.filter(stock => stock.signal === 'BUY');
@@ -808,7 +653,6 @@ io.on('connection', (socket) => {
   connectedClients++;
   console.log(`Client connected: ${socket.id} (Total: ${connectedClients})`);
   
-  // Send initial data
   const stocks = dataStore.get('stocks');
   if (stocks) {
     socket.emit('initial-data', {
@@ -825,13 +669,12 @@ io.on('connection', (socket) => {
     console.log(`Client disconnected: ${socket.id} (Total: ${connectedClients})`);
   });
   
-  // Handle client ping for connection health
   socket.on('ping', () => {
     socket.emit('pong');
   });
 });
 
-// Scheduled updates - only during market hours or for development
+// Scheduled updates
 const updateSchedule = CONFIG.NODE_ENV === 'development' ? '*/2 * * * *' : `${CONFIG.UPDATE_INTERVAL} * * * *`;
 
 cron.schedule(updateSchedule, () => {
@@ -872,3 +715,4 @@ server.listen(CONFIG.PORT, () => {
   console.log(`⏰ Update Interval: ${updateSchedule}`);
   console.log(`🔗 CORS Origin: ${process.env.FRONTEND_URL || "http://localhost:3000"}`);
 });
+EOF
