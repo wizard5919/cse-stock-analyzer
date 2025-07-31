@@ -1,5 +1,3 @@
-# Create a simplified working version
-cat > src/App.js << 'EOF' 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
@@ -8,6 +6,9 @@ import {
   Activity, DollarSign
 } from 'lucide-react';
 import io from 'socket.io-client';
+
+// Import the CSS styles
+import './styles/index.css';
 
 // Simple configuration
 const CONFIG = {
@@ -166,10 +167,6 @@ const CSEStockAnalyzer = () => {
               <Activity size={32} color="#2563eb" />
               <h1>CSE Stock Analyzer</h1>
             </div>
-            <div className={`status-indicator ${connectionStatus === 'online' ? 'status-online' : 'status-offline'}`}>
-              {connectionStatus === 'online' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-              <span>{connectionStatus === 'online' ? 'Live # Continue creating the simplified App.js
-cat >> src/App.js << 'EOF'
             <div className={`status-indicator ${connectionStatus === 'online' ? 'status-online' : 'status-offline'}`}>
               {connectionStatus === 'online' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
               <span>{connectionStatus === 'online' ? 'Live Data' : 'Offline Mode'}</span>
@@ -527,8 +524,17 @@ cat >> src/App.js << 'EOF'
                 <p className="empty-state-description">Choose a stock from the overview to see detailed analysis.</p>
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  style={{ background: '#2563eb', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', marginTop: '1rem' }}
+                  style={{ 
+                    background: '#2563eb', 
+                    color: 'white', 
+                    padding: '0.75rem 1.5rem', 
+                    borderRadius: '0.5rem', 
+                    border: 'none', 
+                    cursor: 'pointer', 
+                    marginTop: '1rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '500'
+                  }}
                 >
                   Browse Stocks
                 </button>
@@ -599,4 +605,3 @@ cat >> src/App.js << 'EOF'
 };
 
 export default CSEStockAnalyzer;
-EOF
