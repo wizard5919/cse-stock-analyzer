@@ -85,8 +85,8 @@ cd frontend && npm start
 
 ### **4. Access Application**
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000/api
-- **Health Check**: http://localhost:5000/api/health
+- **Backend API**: http://localhost:5001/api
+- **Health Check**: http://localhost:5001/api/health
 
 ## 📱 **Screenshots**
 
