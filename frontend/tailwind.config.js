@@ -1,5 +1,5 @@
-# Create the proper tailwind.config.js file for frontend
-cat > frontend/tailwind.config.js << 'EOF'
+// Create the proper tailwind.config.js file for frontend
+//cat > frontend/tailwind.config.js << 'EOF'
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -72,4 +72,4 @@ module.exports = {
   ],
   darkMode: 'class'
 }
-EOF
+
