@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Remove the broken server.js file
-rm -f server.js
+// Remove the broken server.js file
+//rm -f server.js
 
-# Create the correct server.js file
-cat > server.js << 'EOF'
+// Create the correct server.js file
+//cat > server.js << 'EOF'
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -25,6 +25,8 @@ const io = socketIo(server, {
     methods: ["GET", "POST"]
   }
 });
+
+
 
 // Configuration - Fixed port handling to avoid conflicts
 const CONFIG = {
@@ -69,9 +71,9 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
-  credentials: true
+  origin: process.env.FRONTEND_URL || "http://localhost:3000"
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api', limiter);
@@ -1118,12 +1120,7 @@ async function startServer() {
   }
 }
 
-// Start the server
-startServer();
-EOF
-
-echo "✅ Server file created successfully!"
-echo "🚀 Starting the server..."
-
-# Start the server
-npm start
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
